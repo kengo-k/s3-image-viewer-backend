@@ -1,0 +1,9 @@
+version: "3"
+services:
+  s3_uploader:
+    build:
+      context: .
+    container_name: s3_uploader
+    tty: true
+    volumes:
+      - "$PWD/data:/opt/data"
