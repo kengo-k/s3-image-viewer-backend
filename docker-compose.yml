@@ -7,3 +7,4 @@ services:
     tty: true
     volumes:
       - "$PWD/data:/opt/data"
+      - "$PWD/src:/opt/src"
