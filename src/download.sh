@@ -3,13 +3,9 @@
 # 設定ファイルbucket-config.rcで指定したbukectの内容をローカルにsyncする
 # ※bucket内の任意のサブディレクトリを指定可能
 #
-# ・1番目の引数: ダウンロード先のディレクトリのパス
-# ・2番目の引数: bucketのサブディレクトリ
-# を指定する。
-#
-# 2番目の引数を指定しない場合はbucket内のデータを全てsyncする
-# ※引数を指定する順番に注意
+# ・引数を指定しない場合はbucket内の全データを/opt/data直下に
+# ・引数を指定した場合はbucket内の指定したサブディレクトリを/opt/data下の同名ディレクトリに
+# 配置する
 source bucket-config.rc
-TO_DIR=$1
-FROM_DIR=$2
-aws s3 sync --exact-timestamps --delete s3://$BUCKET_NAME/$FROM_DIR $TO_DIR
+TARGET_DIR=$1
+aws s3 sync --exact-timestamps --delete s3://$BUCKET_NAME/$TARGET_DIR /opt/data/$TARGET_DIR
