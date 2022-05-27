@@ -8,4 +8,4 @@
 # 配置する
 source bucket-config.rc
 TARGET_DIR=$1
-aws s3 sync --exact-timestamps --delete /opt/data/$TARGET_DIR s3://$BUCKET_NAME/$TARGET_DIR
+aws s3 sync --exact-timestamps --delete --exclude ".DS_Store" /opt/data/$TARGET_DIR s3://$BUCKET_NAME/$TARGET_DIR
