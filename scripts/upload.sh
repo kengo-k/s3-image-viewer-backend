@@ -8,8 +8,8 @@
 # 配置する
 
 echo ">upload s3..."
-echo ">BUCKET_NAME=$1"
-echo ">TARGET_DIR=$2"
+echo "BUCKET_NAME=$1"
+echo "TARGET_DIR=$2"
 
 BUCKET_NAME=$1
 TARGET_DIR=$2
