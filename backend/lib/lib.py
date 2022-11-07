@@ -82,3 +82,14 @@ def sync_date(*, lo, s3):
     for lopath in lo:
         s3time = s3[lopath]
         os.utime(DATA_DIR + lopath, (s3time.timestamp(), s3time.timestamp()))
+
+
+def sync(*, src, dist, dry=True):
+    """
+    同期元(src)を基準として同期先(dist)へ同期を実行する
+    - 同期先のファイルが同期元に存在しない場合同期先からファイルを削除する
+    - 同期元のファイルが同期先に存在しない場合は新規追加として同期先へ送信する
+    - 同期元のファイルが同期先にも存在する場合は同期元の更新時刻のほうが新しい場合のみ同期先へ送信する
+    dry=Trueの場合は同期は実行せずに対象のリストを返す
+    """
+    pass
