@@ -11,8 +11,6 @@ TMPDIR = ""
 
 @pytest.fixture(scope="module", autouse=True)
 def init_local_dir():
-    print("1")
-
     def mkfile(dir, name, y, m, d):
         file_path = dir + "/" + name
         dir_path = os.path.dirname(file_path)
@@ -83,3 +81,25 @@ def test_get_local_file_info():
     for key in table:
         assert key in lo
         assert lo[key] == table[key]
+
+
+def test_get_download_list(mocker):
+    mocker.patch("lib.lib.__get_s3_client", return_value=MockClient())
+    s3 = lib.lib.get_s3_file_info("dummy_bucket", "dummy_prefix")
+    lo = lib.lib.get_local_file_info(TMPDIR + "/", "")
+    d = lib.lib.get_download_list(lo=lo, s3=s3)
+    assert len(d) == 2
+    table = ["dir1/test2.txt", "dir1/test3.txt"]
+    for t in table:
+        assert t in d
+
+
+def test_get_upload_list(mocker):
+    mocker.patch("lib.lib.__get_s3_client", return_value=MockClient())
+    s3 = lib.lib.get_s3_file_info("dummy_bucket", "dummy_prefix")
+    lo = lib.lib.get_local_file_info(TMPDIR + "/", "")
+    u = lib.lib.get_upload_list(lo=lo, s3=s3)
+    assert len(u) == 2
+    table = ["dir1/testA.txt", "dir2/test2.txt"]
+    for t in table:
+        assert t in u
