@@ -10,7 +10,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+DATA_DIR = os.getenv("DATA_DIR")
 BUCKET_NAME = os.getenv("BUCKET_NAME")
+
 client = boto3.client(
     "s3",
     aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
@@ -56,6 +58,13 @@ def get_download_list(local_file_info, s3_file_info):
     return dlist
 
 
+def sync_date(local_file_info, s3_file_info):
+    """
+    localを基準に回しlocalの更新時刻をs3に更新時刻に合わせる
+    """
+    pass
+
+
 def get_upload_list(local_file_info, s3_file_info):
     """
     localを基準に回し
@@ -67,6 +76,6 @@ def get_upload_list(local_file_info, s3_file_info):
 
 
 s3 = get_s3_file_info(BUCKET_NAME, "R4-2022/04")
-lo = get_local_file_info("../images/", "R4-2022/04")
+lo = get_local_file_info(DATA_DIR, "R4-2022/04")
 
 dl = get_download_list(lo, s3)
