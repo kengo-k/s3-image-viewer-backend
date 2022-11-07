@@ -3,7 +3,6 @@
 
 import datetime
 import os
-import pathlib
 
 import boto3
 from dotenv import load_dotenv
@@ -31,7 +30,7 @@ def get_s3_file_info(bucket_name, prefix):
 
 def get_local_file_info(prefix, dir):
     dict = {}
-    for root, dirs, files in os.walk(top=prefix + dir):
+    for root, _, files in os.walk(top=prefix + dir):
         for file in files:
             file_path = os.path.join(root, file)
             stat = os.stat(file_path)
@@ -77,7 +76,3 @@ def sync_date(*, lo, s3):
     for lopath in lo:
         s3time = s3[lopath]
         os.utime(DATA_DIR + lopath, (s3time.timestamp(), s3time.timestamp()))
-
-
-s3 = get_s3_file_info(BUCKET_NAME, "R4-2022/04")
-lo = get_local_file_info(DATA_DIR, "R4-2022/04")
