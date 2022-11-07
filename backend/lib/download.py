@@ -40,7 +40,7 @@ def get_local_file_info(prefix, dir):
     return dict
 
 
-def get_download_list(local_file_info, s3_file_info):
+def get_download_list(*, lo, s3):
     """
     s3を基準に回し
     - s3に存在するがlocalに存在しない
@@ -48,14 +48,26 @@ def get_download_list(local_file_info, s3_file_info):
     ファイルの一覧をダウンロード対象のファイルと判断する
     """
     dlist = []
-    for s3path in s3_file_info:
-        if s3path not in local_file_info:
+    for s3path in s3:
+        if s3path not in lo:
             dlist.append(s3path)
-        s3date = s3_file_info[s3path]
-        lodate = local_file_info[s3path]
+            continue
+        s3date = s3[s3path]
+        lodate = lo[s3path]
         if s3date > lodate:
             dlist.append(s3path)
+            continue
     return dlist
+
+
+def get_upload_list(*, lo, s3):
+    """
+    localを基準に回し
+    - localに存在するがs3に存在しない
+    - localにもs3にも存在するがlocalのほうが更新時刻が新しい
+    ファイルの一覧をアップロード対象のファイルと判断する
+    """
+    return get_download_list(lo=s3, s3=lo)
 
 
 def sync_date(local_file_info, s3_file_info):
@@ -67,18 +79,5 @@ def sync_date(local_file_info, s3_file_info):
         os.utime(DATA_DIR + lopath, (s3time.timestamp(), s3time.timestamp()))
 
 
-def get_upload_list(local_file_info, s3_file_info):
-    """
-    localを基準に回し
-    - localに存在するがs3に存在しない
-    - localにもs3にも存在するがlocalのほうが更新時刻が新しい
-    ファイルの一覧をアップロード対象のファイルと判断する
-    """
-    pass
-
-
 s3 = get_s3_file_info(BUCKET_NAME, "R4-2022/04")
 lo = get_local_file_info(DATA_DIR, "R4-2022/04")
-
-dl = get_download_list(lo, s3)
-# sync_date(lo, s3)
