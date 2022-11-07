@@ -20,9 +20,10 @@ client = boto3.client(
 
 def get_s3_file_info(bucket_name, prefix):
     objects = client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
-    dict = [
-        {content["Key"]: content["LastModified"]} for content in objects["Contents"]
-    ]
+    dict = {
+        content["Key"]: content["LastModified"].replace(tzinfo=None)
+        for content in objects["Contents"]
+    }
     return dict
 
 
@@ -33,7 +34,7 @@ def get_local_file_info(prefix, dir):
             file_path = os.path.join(root, file)
             stat = os.stat(file_path)
             dt = datetime.datetime.fromtimestamp(stat.st_mtime)
-            dict[file_path[len(prefix) :]] = dt
+            dict[file_path[len(prefix) :]] = dt.replace(tzinfo=None)
     return dict
 
 
@@ -44,7 +45,15 @@ def get_download_list(local_file_info, s3_file_info):
     - s3にもlocalにも存在するがs3のほうが更新時刻が新しい
     ファイルの一覧をダウンロード対象のファイルと判断する
     """
-    pass
+    dlist = []
+    for s3path in s3_file_info:
+        if s3path not in local_file_info:
+            dlist.append(s3path)
+        s3date = s3_file_info[s3path]
+        lodate = local_file_info[s3path]
+        if s3date > lodate:
+            dlist.append(s3path)
+    return dlist
 
 
 def get_upload_list(local_file_info, s3_file_info):
@@ -60,6 +69,4 @@ def get_upload_list(local_file_info, s3_file_info):
 s3 = get_s3_file_info(BUCKET_NAME, "R4-2022/04")
 lo = get_local_file_info("../images/", "R4-2022/04")
 
-print(s3)
-print("----")
-print(lo)
+dl = get_download_list(lo, s3)
