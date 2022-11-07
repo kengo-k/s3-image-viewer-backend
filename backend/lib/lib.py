@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import datetime
 import os
+from functools import cache
 
 import boto3
 from dotenv import load_dotenv
@@ -12,14 +12,20 @@ load_dotenv()
 DATA_DIR = os.getenv("DATA_DIR")
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 
-client = boto3.client(
-    "s3",
-    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-)
+
+@cache
+def __get_s3_client():
+    print("create client")
+    client = boto3.client(
+        "s3",
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    )
+    return client
 
 
 def get_s3_file_info(bucket_name, prefix):
+    client = __get_s3_client()
     objects = client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
     dict = {
         content["Key"]: content["LastModified"].replace(tzinfo=None)
