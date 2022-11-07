@@ -10,33 +10,56 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 BUCKET_NAME = os.getenv("BUCKET_NAME")
-
 client = boto3.client(
     "s3",
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
 )
 
-objects = client.list_objects_v2(Bucket=BUCKET_NAME, Prefix="R4-2022")
-file_info_list = [
-    {"path": content["Key"], "last_modified": content["LastModified"]}
-    for content in objects["Contents"]
-]
 
-local_file_dict = {}
-for root, dirs, files in os.walk(top="../images"):
-    for file in files:
-        file_path = os.path.join(root, file)
-        stat = os.stat(file_path)
-        dt = datetime.datetime.fromtimestamp(stat.st_mtime)
-        local_file_dict[file_path] = dt
+def get_s3_file_info(bucket_name, prefix):
+    objects = client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+    dict = [
+        {content["Key"]: content["LastModified"]} for content in objects["Contents"]
+    ]
+    return dict
 
-for f in file_info_list:
-    path = f["path"]
-    last_modified = f["last_modified"]
-    nestedDir = os.path.dirname(path)
-    pathlib.Path("../images/" + nestedDir).mkdir(parents=True, exist_ok=True)
-    client.download_file(BUCKET_NAME, path, "../images/" + path)
+
+def get_local_file_info(prefix, dir):
+    dict = {}
+    for root, dirs, files in os.walk(top=prefix + dir):
+        for file in files:
+            file_path = os.path.join(root, file)
+            stat = os.stat(file_path)
+            dt = datetime.datetime.fromtimestamp(stat.st_mtime)
+            dict[file_path[len(prefix) :]] = dt
+    return dict
+
+
+def get_download_list(local_file_info, s3_file_info):
+    """
+    s3を基準に回し
+    - s3に存在するがlocalに存在しない
+    - s3にもlocalにも存在するがs3のほうが更新時刻が新しい
+    ファイルの一覧をダウンロード対象のファイルと判断する
+    """
+    pass
+
+
+def get_upload_list(local_file_info, s3_file_info):
+    """
+    localを基準に回し
+    - localに存在するがs3に存在しない
+    - localにもs3にも存在するがlocalのほうが更新時刻が新しい
+    ファイルの一覧をアップロード対象のファイルと判断する
+    """
+    pass
+
+
+s3 = get_s3_file_info(BUCKET_NAME, "R4-2022/04")
+lo = get_local_file_info("../images/", "R4-2022/04")
+
+print(s3)
+print("----")
+print(lo)
