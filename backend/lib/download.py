@@ -70,12 +70,12 @@ def get_upload_list(*, lo, s3):
     return get_download_list(lo=s3, s3=lo)
 
 
-def sync_date(local_file_info, s3_file_info):
+def sync_date(*, lo, s3):
     """
     localを基準に回しlocalの更新時刻をs3に更新時刻に合わせる
     """
-    for lopath in local_file_info:
-        s3time = s3_file_info[lopath]
+    for lopath in lo:
+        s3time = s3[lopath]
         os.utime(DATA_DIR + lopath, (s3time.timestamp(), s3time.timestamp()))
 
 
