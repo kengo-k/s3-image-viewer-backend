@@ -83,23 +83,22 @@ def test_get_local_file_info():
         assert lo[key] == table[key]
 
 
-def test_get_download_list(mocker):
+def test_sync_local_to_s3(mocker):
     mocker.patch("lib.lib.__get_s3_client", return_value=MockClient())
-    s3 = lib.lib.get_s3_file_info("dummy_bucket", "dummy_prefix")
-    lo = lib.lib.get_local_file_info(TMPDIR + "/", "")
-    d = lib.lib.get_download_list(lo=lo, s3=s3)
-    assert len(d) == 2
-    table = ["dir1/test2.txt", "dir1/test3.txt"]
-    for t in table:
-        assert t in d
+    src = lib.lib.get_local_file_info(TMPDIR + "/", "")
+    dist = lib.lib.get_s3_file_info("dummy_bucket", "dummy_prefix")
 
+    table = {
+        "dir2/test2.txt": {"action": "upload"},
+        "dir1/testA.txt": {"action": "upload"},
+        "dir1/test2.txt": {"action": "delete_from_s3"},
+    }
 
-def test_get_upload_list(mocker):
-    mocker.patch("lib.lib.__get_s3_client", return_value=MockClient())
-    s3 = lib.lib.get_s3_file_info("dummy_bucket", "dummy_prefix")
-    lo = lib.lib.get_local_file_info(TMPDIR + "/", "")
-    u = lib.lib.get_upload_list(lo=lo, s3=s3)
-    assert len(u) == 2
-    table = ["dir1/testA.txt", "dir2/test2.txt"]
-    for t in table:
-        assert t in u
+    action_count = 0
+    gen = lib.lib.sync_local_to_s3(src=src, dist=dist, dry=True)
+    for action in gen:
+        action_count += 1
+        path = action["path"]
+        assert path in table
+        action["action"] == table[path]["action"]
+    assert action_count == 3
