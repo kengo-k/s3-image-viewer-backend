@@ -3,10 +3,15 @@
 import datetime
 import os
 from functools import cache
-from typing import TypedDict
+from typing import Callable, Literal, TypedDict
 
 import boto3
 from dotenv import load_dotenv
+
+ActionKey = Literal["upload", "download", "delete_from_s3", "delete_from_local"]
+Action = TypedDict("ActionDictType", {"action": ActionKey, "path": str})
+FileInfo = dict[str, datetime.datetime]
+CreateAction = Callable[[str, bool], Action]
 
 load_dotenv()
 
@@ -25,7 +30,7 @@ def __get_s3_client():
     return client
 
 
-def get_s3_file_info(bucket_name, prefix):
+def get_s3_file_info(bucket_name: str, prefix: str) -> FileInfo:
     client = __get_s3_client()
     objects = client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
     dict = {
@@ -35,7 +40,7 @@ def get_s3_file_info(bucket_name, prefix):
     return dict
 
 
-def get_local_file_info(prefix, dir):
+def get_local_file_info(prefix: str, dir: str) -> FileInfo:
     dict = {}
     for root, _, files in os.walk(top=prefix + dir):
         for file in files:
@@ -44,36 +49,6 @@ def get_local_file_info(prefix, dir):
             dt = datetime.datetime.fromtimestamp(stat.st_mtime)
             dict[file_path[len(prefix) :]] = dt.replace(tzinfo=None)
     return dict
-
-
-def get_download_list(*, lo, s3):
-    """
-    s3を基準に回し
-    - s3に存在するがlocalに存在しない
-    - s3にもlocalにも存在するがs3のほうが更新時刻が新しい
-    ファイルの一覧をダウンロード対象のファイルと判断する
-    """
-    dlist = []
-    for s3path in s3:
-        if s3path not in lo:
-            dlist.append(s3path)
-            continue
-        s3date = s3[s3path]
-        lodate = lo[s3path]
-        if s3date > lodate:
-            dlist.append(s3path)
-            continue
-    return dlist
-
-
-def get_upload_list(*, lo, s3):
-    """
-    localを基準に回し
-    - localに存在するがs3に存在しない
-    - localにもs3にも存在するがlocalのほうが更新時刻が新しい
-    ファイルの一覧をアップロード対象のファイルと判断する
-    """
-    return get_download_list(lo=s3, s3=lo)
 
 
 def sync_date(*, lo, s3):
@@ -85,8 +60,8 @@ def sync_date(*, lo, s3):
         os.utime(DATA_DIR + lopath, (s3time.timestamp(), s3time.timestamp()))
 
 
-def sync_local_to_s3(*, src, dist, dry=True):
-    def create_action(path, is_delete):
+def sync_local_to_s3(*, src: FileInfo, dist: FileInfo, dry=True):
+    def create_action(path: str, is_delete: bool) -> Action:
         if is_delete:
             return {"action": "delete_from_s3", "path": path}
         else:
@@ -95,11 +70,8 @@ def sync_local_to_s3(*, src, dist, dry=True):
     return __sync(create_action, src=src, dist=dist, dry=dry)
 
 
-Action = TypedDict("ActionDictType", {"action": str, "path": str})
-
-
-def sync_s3_to_local(*, src, dist, dry=True):
-    def create_action(path, is_delete) -> Action:
+def sync_s3_to_local(*, src: FileInfo, dist: FileInfo, dry=True):
+    def create_action(path: str, is_delete: bool) -> Action:
         if is_delete:
             return {"action": "delete_from_local", "path": path}
         else:
@@ -108,7 +80,7 @@ def sync_s3_to_local(*, src, dist, dry=True):
     return __sync(create_action, src=src, dist=dist, dry=dry)
 
 
-def __sync(create_action, *, src, dist, dry=True):
+def __sync(create_action: CreateAction, *, src: FileInfo, dist: FileInfo, dry=True):
     """
     同期元(src)を基準として同期先(dist)へ同期を実行する
     - 1.同期先のファイルが同期元に存在しない場合同期先からファイルを削除する
@@ -117,7 +89,7 @@ def __sync(create_action, *, src, dist, dry=True):
     dry=Trueの場合は同期は実行せずに対象のリストを返す
     """
 
-    def run_action(action):
+    def run_action(action: Action):
         a = action["action"]
         if a == "upload":
             pass
