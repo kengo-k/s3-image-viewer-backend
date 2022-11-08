@@ -3,6 +3,7 @@
 import datetime
 import os
 from functools import cache
+from typing import TypedDict
 
 import boto3
 from dotenv import load_dotenv
@@ -94,8 +95,11 @@ def sync_local_to_s3(*, src, dist, dry=True):
     return __sync(create_action, src=src, dist=dist, dry=dry)
 
 
+Action = TypedDict("ActionDictType", {"action": str, "path": str})
+
+
 def sync_s3_to_local(*, src, dist, dry=True):
-    def create_action(path, is_delete):
+    def create_action(path, is_delete) -> Action:
         if is_delete:
             return {"action": "delete_from_local", "path": path}
         else:
