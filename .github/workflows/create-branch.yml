@@ -1,0 +1,19 @@
+name: create-branch-when-issue-opened
+
+on:
+  issues:
+    types: [ opened ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout dev
+        uses: actions/checkout@v2
+
+      - name: create feature branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          gh issue develop ${{ github.event.issue.number }} --name "f/${{ github.event.issue.number }}" --base main
