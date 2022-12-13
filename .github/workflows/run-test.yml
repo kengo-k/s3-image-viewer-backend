@@ -16,8 +16,12 @@ jobs:
           python-version: '3.9'
 
       - name: Install Deps
-        run: make install
+        run: |
+          cd backend
+          make install
 
       - name: run pytest
         if: github.ref != 'refs/heads/main'
-        run: make test
+        run: |
+          cd backend
+          make test
