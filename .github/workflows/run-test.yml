@@ -21,13 +21,11 @@ jobs:
           make install
 
       - name: run pytest
-        if: github.ref != 'refs/heads/main'
         run: |
           cd backend
           make test
 
       - name: upload coverage to codecov
-        if: github.ref == 'refs/heads/main'
         uses: codecov/codecov-action@v2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
