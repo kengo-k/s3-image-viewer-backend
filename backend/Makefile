@@ -10,4 +10,4 @@ install:
 	pip install -r requirements.txt
 
 test:
-	PYTHONPATH=$(CURDIR) pytest -s test
+	PYTHONPATH=$(CURDIR) pytest --cov --cov-report=xml -s test
