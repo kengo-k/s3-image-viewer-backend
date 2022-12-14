@@ -3,15 +3,11 @@
 import datetime
 import os
 from functools import cache
-from typing import Callable, Literal, TypedDict
 
 import boto3
 from dotenv import load_dotenv
 
-ActionKey = Literal["upload", "download", "delete_from_s3", "delete_from_local"]
-Action = TypedDict("ActionDictType", {"action": ActionKey, "path": str})
-FileInfo = dict[str, datetime.datetime]
-CreateAction = Callable[[str, bool], Action]
+from lib.types import TActionDict, TCreateAction, TFileInfoDict
 
 load_dotenv()
 
@@ -30,25 +26,25 @@ def __get_s3_client():
     return client
 
 
-def get_s3_file_info(bucket_name: str, prefix: str) -> FileInfo:
+def get_s3_file_info(bucket_name: str, prefix: str) -> TFileInfoDict:
     client = __get_s3_client()
     objects = client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
-    dict = {
+    file_info: TFileInfoDict = {
         content["Key"]: content["LastModified"].replace(tzinfo=None)
         for content in objects["Contents"]
     }
-    return dict
+    return file_info
 
 
-def get_local_file_info(prefix: str, dir: str) -> FileInfo:
-    dict = {}
-    for root, _, files in os.walk(top=prefix + dir):
+def get_local_file_info(prefix: str) -> TFileInfoDict:
+    file_info: TFileInfoDict = {}
+    for root, _, files in os.walk(top=prefix):
         for file in files:
             file_path = os.path.join(root, file)
             stat = os.stat(file_path)
             dt = datetime.datetime.fromtimestamp(stat.st_mtime)
-            dict[file_path[len(prefix) :]] = dt.replace(tzinfo=None)
-    return dict
+            file_info[file_path[len(prefix):]] = dt.replace(tzinfo=None)
+    return file_info
 
 
 def sync_date(*, lo, s3):
@@ -60,8 +56,8 @@ def sync_date(*, lo, s3):
         os.utime(DATA_DIR + lopath, (s3time.timestamp(), s3time.timestamp()))
 
 
-def sync_local_to_s3(*, src: FileInfo, dist: FileInfo, dry=True):
-    def create_action(path: str, is_delete: bool) -> Action:
+def sync_local_to_s3(*, src: TFileInfoDict, dist: TFileInfoDict, dry=True):
+    def create_action(path: str, is_delete: bool) -> TActionDict:
         if is_delete:
             return {"action": "delete_from_s3", "path": path}
         else:
@@ -70,8 +66,8 @@ def sync_local_to_s3(*, src: FileInfo, dist: FileInfo, dry=True):
     return __sync(create_action, src=src, dist=dist, dry=dry)
 
 
-def sync_s3_to_local(*, src: FileInfo, dist: FileInfo, dry=True):
-    def create_action(path: str, is_delete: bool) -> Action:
+def sync_s3_to_local(*, src: TFileInfoDict, dist: TFileInfoDict, dry=True):
+    def create_action(path: str, is_delete: bool) -> TActionDict:
         if is_delete:
             return {"action": "delete_from_local", "path": path}
         else:
@@ -80,7 +76,7 @@ def sync_s3_to_local(*, src: FileInfo, dist: FileInfo, dry=True):
     return __sync(create_action, src=src, dist=dist, dry=dry)
 
 
-def __sync(create_action: CreateAction, *, src: FileInfo, dist: FileInfo, dry=True):
+def __sync(create_action: TCreateAction, *, src: TFileInfoDict, dist: TFileInfoDict, dry=True):
     """
     同期元(src)を基準として同期先(dist)へ同期を実行する
     - 1.同期先のファイルが同期元に存在しない場合同期先からファイルを削除する
@@ -89,7 +85,7 @@ def __sync(create_action: CreateAction, *, src: FileInfo, dist: FileInfo, dry=Tr
     dry=Trueの場合は同期は実行せずに対象のリストを返す
     """
 
-    def run_action(action: Action):
+    def run_action(action: TActionDict):
         a = action["action"]
         if a == "upload":
             pass
@@ -100,26 +96,27 @@ def __sync(create_action: CreateAction, *, src: FileInfo, dist: FileInfo, dry=Tr
         elif a == "delete_from_s3":
             pass
 
-    for distpath in dist:
-        if distpath not in src:
+    for dist_path in dist:
+        if dist_path not in src:
             # pattern 1
-            action = create_action(distpath, True)
+            action = create_action(dist_path, True)
             yield action
             if not dry:
                 run_action(action)
-    for srcpath in src:
-        if srcpath not in dist:
+
+    for src_path in src:
+        if src_path not in dist:
             # pattern 2
-            action = create_action(srcpath, False)
+            action = create_action(src_path, False)
             yield action
             if not dry:
                 run_action(action)
         else:
-            src_date = src[srcpath]
-            dist_date = dist[srcpath]
+            src_date = src[src_path]
+            dist_date = dist[src_path]
             if src_date > dist_date:
                 # pattern 3
-                action = create_action(srcpath, False)
+                action = create_action(src_path, False)
                 yield action
                 if not dry:
                     run_action(action)
