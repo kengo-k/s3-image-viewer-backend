@@ -3,6 +3,7 @@
 import datetime
 import os
 from functools import cache
+from typing import List
 
 import boto3
 from dotenv import load_dotenv
@@ -17,7 +18,6 @@ BUCKET_NAME = os.getenv("BUCKET_NAME")
 
 @cache
 def __get_s3_client():
-    print("create client")
     client = boto3.client(
         "s3",
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
@@ -63,7 +63,7 @@ def sync_local_to_s3(*, src: TFileInfoDict, dist: TFileInfoDict, dry=True):
         else:
             return {"action": "upload", "path": path}
 
-    return __sync(create_action, src=src, dist=dist, dry=dry)
+    return __sync(create_action, src=src, dist=dist)
 
 
 def sync_s3_to_local(*, src: TFileInfoDict, dist: TFileInfoDict, dry=True):
@@ -73,10 +73,10 @@ def sync_s3_to_local(*, src: TFileInfoDict, dist: TFileInfoDict, dry=True):
         else:
             return {"action": "download", "path": path}
 
-    return __sync(create_action, src=src, dist=dist, dry=dry)
+    return __sync(create_action, src=src, dist=dist)
 
 
-def __sync(create_action: TCreateAction, *, src: TFileInfoDict, dist: TFileInfoDict, dry=True):
+def __sync(create_action: TCreateAction, *, src: TFileInfoDict, dist: TFileInfoDict) -> List[TActionDict]:
     """
     同期元(src)を基準として同期先(dist)へ同期を実行する
     - 1.同期先のファイルが同期元に存在しない場合同期先からファイルを削除する
@@ -85,38 +85,24 @@ def __sync(create_action: TCreateAction, *, src: TFileInfoDict, dist: TFileInfoD
     dry=Trueの場合は同期は実行せずに対象のリストを返す
     """
 
-    def run_action(action: TActionDict):
-        a = action["action"]
-        if a == "upload":
-            pass
-        elif a == "download":
-            pass
-        elif a == "delete_from_local":
-            pass
-        elif a == "delete_from_s3":
-            pass
-
+    actions: List[TActionDict] = []
     for dist_path in dist:
         if dist_path not in src:
             # pattern 1
             action = create_action(dist_path, True)
-            yield action
-            if not dry:
-                run_action(action)
+            actions.append(action)
 
     for src_path in src:
         if src_path not in dist:
             # pattern 2
             action = create_action(src_path, False)
-            yield action
-            if not dry:
-                run_action(action)
+            actions.append(action)
         else:
             src_date = src[src_path]
             dist_date = dist[src_path]
             if src_date > dist_date:
                 # pattern 3
                 action = create_action(src_path, False)
-                yield action
-                if not dry:
-                    run_action(action)
+                actions.append(action)
+
+    return actions
