@@ -29,6 +29,8 @@ def __get_s3_client():
 def get_s3_file_info(bucket_name: str, prefix: str) -> TFileInfoDict:
     client = __get_s3_client()
     objects = client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+    if "Contents" not in objects:
+        return {}
     file_info: TFileInfoDict = {
         content["Key"]: content["LastModified"].replace(tzinfo=None)
         for content in objects["Contents"]
@@ -74,6 +76,16 @@ def sync_s3_to_local(*, src: TFileInfoDict, dist: TFileInfoDict, dry=True):
             return {"action": "download", "path": path}
 
     return __sync(create_action, src=src, dist=dist)
+
+
+def apply_actions(bucket_name: str, action_list: List[TActionDict]) -> None:
+    client = __get_s3_client()
+    for a in action_list:
+        path = a["path"]
+        action = a["action"]
+        if action == "upload":
+            print("path:" + path)
+            # client.upload_file(path, bucket_name, )
 
 
 def __sync(create_action: TCreateAction, *, src: TFileInfoDict, dist: TFileInfoDict) -> List[TActionDict]:
