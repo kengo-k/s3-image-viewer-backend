@@ -57,8 +57,14 @@ class MockClient:
 
 
 def test_get_local_file_info():
-    got = lib.get_local_file_info(TMPDIR + "/dir1/", TMPDIR + "/dir1/")
-    want_paths = ["test1.txt", "test2.txt", "subdir1/test3.txt", "subdir1/test4.txt", "subdir2/test5.txt"]
+    got = lib.get_local_file_info(TMPDIR, "dir1")
+    want_paths = [
+        "dir1/test1.txt",
+        "dir1/test2.txt",
+        "dir1/subdir1/test3.txt",
+        "dir1/subdir1/test4.txt",
+        "dir1/subdir2/test5.txt"
+    ]
     assert 5 == len(got)
     for k in got:
         assert k in want_paths
@@ -93,7 +99,7 @@ def test_sync_local_to_s3():
         "no_upload.txt": datetime.datetime(2000, 1, 1),
         "delete.txt": datetime.datetime(2000, 1, 1)
     }
-    actions = lib.sync_local_to_s3(src=src, dist=dist)
+    actions = lib.create_local_to_s3_actions(src=src, dist=dist)
     assert len(actions) == 3
     want = {
         "newfile.txt": "upload",
@@ -115,7 +121,7 @@ def test_sync_s3_to_local():
         "no_download.txt": datetime.datetime(2000, 1, 1),
         "delete.txt": datetime.datetime(2000, 1, 1)
     }
-    actions = lib.sync_s3_to_local(src=src, dist=dist)
+    actions = lib.create_s3_to_local_actions(src=src, dist=dist)
     assert len(actions) == 3
     want = {
         "newfile.txt": "download",

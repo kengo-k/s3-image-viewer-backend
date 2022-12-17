@@ -37,7 +37,7 @@ def init_local_dir():
 
 
 def test_upload_s3_from_local():
-    local_file_info = lib.get_local_file_info(TMPDIR + "/dir1/", TMPDIR + "/")
+    local_file_info = lib.get_local_file_info(TMPDIR, "dir1")
     assert len(local_file_info) == 5
 
     local_file_paths = list(local_file_info.keys())
@@ -52,7 +52,7 @@ def test_upload_s3_from_local():
     for i in range(5):
         assert local_file_paths[i] == want_local_file_paths[i]
 
-    action_list = lib.sync_local_to_s3(src=local_file_info, dist={})
+    action_list = lib.create_local_to_s3_actions(src=local_file_info, dist={})
     assert len(action_list) == 5
 
     lib.apply_actions(BUCKET_NAME, TMPDIR + "/", action_list)
