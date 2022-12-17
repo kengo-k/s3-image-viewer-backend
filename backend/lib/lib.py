@@ -32,20 +32,20 @@ def get_s3_file_info(bucket_name: str, prefix: str) -> TFileInfoDict:
     if "Contents" not in objects:
         return {}
     file_info: TFileInfoDict = {
-        content["Key"]: content["LastModified"].replace(tzinfo=None)
+        content["Key"]: content["LastModified"]
         for content in objects["Contents"]
     }
     return file_info
 
 
-def get_local_file_info(prefix: str) -> TFileInfoDict:
+def get_local_file_info(dirname: str, prefix: str) -> TFileInfoDict:
     file_info: TFileInfoDict = {}
-    for root, _, files in os.walk(top=prefix):
+    for root, _, files in os.walk(top=dirname):
         for file in files:
             file_path = os.path.join(root, file)
             stat = os.stat(file_path)
             dt = datetime.datetime.fromtimestamp(stat.st_mtime)
-            file_info[file_path] = dt.replace(tzinfo=None)
+            file_info[file_path[len(prefix):]] = dt.replace(tzinfo=None)
     return file_info
 
 
@@ -84,8 +84,9 @@ def apply_actions(bucket_name: str, prefix: str, action_list: List[TActionDict])
         path = a["path"]
         action = a["action"]
         if action == "upload":
-            key = path[len(prefix):]
-            client.upload_file(path, bucket_name, key)
+            key = path
+            fullpath = prefix + "/" + path
+            client.upload_file(fullpath, bucket_name, key)
 
 
 def __sync(create_action: TCreateAction, *, src: TFileInfoDict, dist: TFileInfoDict) -> List[TActionDict]:

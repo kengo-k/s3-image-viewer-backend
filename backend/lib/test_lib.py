@@ -57,15 +57,13 @@ class MockClient:
 
 
 def test_get_local_file_info():
-    got = lib.get_local_file_info(TMPDIR + "/dir1/")
+    got = lib.get_local_file_info(TMPDIR + "/dir1/", TMPDIR + "/dir1/")
     want_paths = ["test1.txt", "test2.txt", "subdir1/test3.txt", "subdir1/test4.txt", "subdir2/test5.txt"]
     assert 5 == len(got)
     for k in got:
-        assert k.startswith(TMPDIR + "/dir1/")
-        path = k[len(TMPDIR + "/dir1/"):]
-        assert path in want_paths
-        want_paths.remove(path)
-    assert 0 == len(want_paths)
+        assert k in want_paths
+        want_paths.remove(k)
+    assert len(want_paths) == 0
 
 
 def test_get_s3_file_info(mocker):
