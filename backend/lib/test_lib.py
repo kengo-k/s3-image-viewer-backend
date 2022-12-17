@@ -2,7 +2,6 @@ import datetime
 import os
 import tempfile
 from pathlib import Path
-from typing import Callable, List
 
 import pytest
 
@@ -58,34 +57,19 @@ class MockClient:
 
 
 def test_get_local_file_info():
-    class Arg:
-        root: str
-
-        def __init__(self, root: str):
-            self.root = root
-
-    class TestParam:
-        arg: Arg
-        predicates: List[Callable[[TFileInfoDict], bool]]
-
-        def __init__(self, arg: Arg, *predicates: Callable[[TFileInfoDict], bool]):
-            self.arg = arg
-            self.predicates = predicates
-
-    def is_len(expected_len: int) -> Callable[[TFileInfoDict], None]:
-        def f(file_info: TFileInfoDict):
-            assert len(file_info) == expected_len
-
-        return f
-
-    ts: List[TestParam] = [
-        TestParam(Arg(TMPDIR + "/dir1/"), is_len(5))
+    got = lib.get_local_file_info(TMPDIR, "dir1")
+    want_paths = [
+        "dir1/test1.txt",
+        "dir1/test2.txt",
+        "dir1/subdir1/test3.txt",
+        "dir1/subdir1/test4.txt",
+        "dir1/subdir2/test5.txt"
     ]
-
-    for t in ts:
-        got = lib.get_local_file_info(t.arg.root)
-        for pred in t.predicates:
-            pred(got)
+    assert 5 == len(got)
+    for k in got:
+        assert k in want_paths
+        want_paths.remove(k)
+    assert len(want_paths) == 0
 
 
 def test_get_s3_file_info(mocker):
@@ -115,7 +99,7 @@ def test_sync_local_to_s3():
         "no_upload.txt": datetime.datetime(2000, 1, 1),
         "delete.txt": datetime.datetime(2000, 1, 1)
     }
-    actions = lib.sync_local_to_s3(src=src, dist=dist)
+    actions = lib.create_local_to_s3_actions(src=src, dist=dist)
     assert len(actions) == 3
     want = {
         "newfile.txt": "upload",
@@ -137,7 +121,7 @@ def test_sync_s3_to_local():
         "no_download.txt": datetime.datetime(2000, 1, 1),
         "delete.txt": datetime.datetime(2000, 1, 1)
     }
-    actions = lib.sync_s3_to_local(src=src, dist=dist)
+    actions = lib.create_s3_to_local_actions(src=src, dist=dist)
     assert len(actions) == 3
     want = {
         "newfile.txt": "download",

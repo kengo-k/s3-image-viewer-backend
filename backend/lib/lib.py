@@ -32,20 +32,20 @@ def get_s3_file_info(bucket_name: str, prefix: str) -> TFileInfoDict:
     if "Contents" not in objects:
         return {}
     file_info: TFileInfoDict = {
-        content["Key"]: content["LastModified"].replace(tzinfo=None)
+        content["Key"]: content["LastModified"]
         for content in objects["Contents"]
     }
     return file_info
 
 
-def get_local_file_info(prefix: str) -> TFileInfoDict:
+def get_local_file_info(dir_path: str, suffix: str) -> TFileInfoDict:
     file_info: TFileInfoDict = {}
-    for root, _, files in os.walk(top=prefix):
+    for root, _, files in os.walk(top=dir_path + "/" + suffix):
         for file in files:
             file_path = os.path.join(root, file)
             stat = os.stat(file_path)
             dt = datetime.datetime.fromtimestamp(stat.st_mtime)
-            file_info[file_path[len(prefix):]] = dt.replace(tzinfo=None)
+            file_info[file_path[len(dir_path) + 1:]] = dt.replace(tzinfo=None)
     return file_info
 
 
@@ -58,37 +58,44 @@ def sync_date(*, lo, s3):
         os.utime(DATA_DIR + lopath, (s3time.timestamp(), s3time.timestamp()))
 
 
-def sync_local_to_s3(*, src: TFileInfoDict, dist: TFileInfoDict, dry=True):
+def sync_local_to_s3() -> None:
+    local_file_info = get_local_file_info()
+    s3_file_info = get_s3_file_info()
+    actions = create_local_to_s3_actions(src=local_file_info, dist=s3_file_info)
+
+
+def create_local_to_s3_actions(*, src: TFileInfoDict, dist: TFileInfoDict, dry=True) -> List[TActionDict]:
     def create_action(path: str, is_delete: bool) -> TActionDict:
         if is_delete:
             return {"action": "delete_from_s3", "path": path}
         else:
             return {"action": "upload", "path": path}
 
-    return __sync(create_action, src=src, dist=dist)
+    return __create_actions(create_action, src=src, dist=dist)
 
 
-def sync_s3_to_local(*, src: TFileInfoDict, dist: TFileInfoDict, dry=True):
+def create_s3_to_local_actions(*, src: TFileInfoDict, dist: TFileInfoDict, dry=True) -> List[TActionDict]:
     def create_action(path: str, is_delete: bool) -> TActionDict:
         if is_delete:
             return {"action": "delete_from_local", "path": path}
         else:
             return {"action": "download", "path": path}
 
-    return __sync(create_action, src=src, dist=dist)
+    return __create_actions(create_action, src=src, dist=dist)
 
 
-def apply_actions(bucket_name: str, action_list: List[TActionDict]) -> None:
+def apply_actions(bucket_name: str, prefix: str, action_list: List[TActionDict]) -> None:
     client = __get_s3_client()
     for a in action_list:
         path = a["path"]
         action = a["action"]
         if action == "upload":
-            print("path:" + path)
-            # client.upload_file(path, bucket_name, )
+            key = path
+            fullpath = prefix + "/" + path
+            client.upload_file(fullpath, bucket_name, key)
 
 
-def __sync(create_action: TCreateAction, *, src: TFileInfoDict, dist: TFileInfoDict) -> List[TActionDict]:
+def __create_actions(create_action: TCreateAction, *, src: TFileInfoDict, dist: TFileInfoDict) -> List[TActionDict]:
     """
     同期元(src)を基準として同期先(dist)へ同期を実行する
     - 1.同期先のファイルが同期元に存在しない場合同期先からファイルを削除する
