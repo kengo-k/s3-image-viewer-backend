@@ -36,6 +36,7 @@ def init_local_dir():
     make_file(TMPDIR, "dir1/subdir2/test5.txt")
 
 
+@pytest.mark.skip("access s3")
 def test_upload_s3_from_local():
     local_file_info = lib.get_local_file_info(TMPDIR, "dir1")
     assert len(local_file_info) == 5
