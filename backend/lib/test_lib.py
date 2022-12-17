@@ -2,7 +2,6 @@ import datetime
 import os
 import tempfile
 from pathlib import Path
-from typing import Callable, List
 
 import pytest
 
@@ -58,34 +57,15 @@ class MockClient:
 
 
 def test_get_local_file_info():
-    class Arg:
-        root: str
-
-        def __init__(self, root: str):
-            self.root = root
-
-    class TestParam:
-        arg: Arg
-        predicates: List[Callable[[TFileInfoDict], bool]]
-
-        def __init__(self, arg: Arg, *predicates: Callable[[TFileInfoDict], bool]):
-            self.arg = arg
-            self.predicates = predicates
-
-    def is_len(expected_len: int) -> Callable[[TFileInfoDict], None]:
-        def f(file_info: TFileInfoDict):
-            assert len(file_info) == expected_len
-
-        return f
-
-    ts: List[TestParam] = [
-        TestParam(Arg(TMPDIR + "/dir1/"), is_len(5))
-    ]
-
-    for t in ts:
-        got = lib.get_local_file_info(t.arg.root)
-        for pred in t.predicates:
-            pred(got)
+    got = lib.get_local_file_info(TMPDIR + "/dir1/")
+    want_paths = ["test1.txt", "test2.txt", "subdir1/test3.txt", "subdir1/test4.txt", "subdir2/test5.txt"]
+    assert 5 == len(got)
+    for k in got:
+        assert k.startswith(TMPDIR + "/dir1/")
+        path = k[len(TMPDIR + "/dir1/"):]
+        assert path in want_paths
+        want_paths.remove(path)
+    assert 0 == len(want_paths)
 
 
 def test_get_s3_file_info(mocker):

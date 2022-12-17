@@ -41,4 +41,4 @@ def test_get_s3_file_info():
     local_file_info = lib.get_local_file_info(TMPDIR + "/dir1/")
     action_list = lib.sync_local_to_s3(src=local_file_info, dist=s3_file_info)
     assert 5 == len(action_list)
-    # lib.apply_actions(BUCKET_NAME, action_list)
+    lib.apply_actions(BUCKET_NAME, TMPDIR + "/", action_list)

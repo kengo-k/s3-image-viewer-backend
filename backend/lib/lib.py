@@ -45,7 +45,7 @@ def get_local_file_info(prefix: str) -> TFileInfoDict:
             file_path = os.path.join(root, file)
             stat = os.stat(file_path)
             dt = datetime.datetime.fromtimestamp(stat.st_mtime)
-            file_info[file_path[len(prefix):]] = dt.replace(tzinfo=None)
+            file_info[file_path] = dt.replace(tzinfo=None)
     return file_info
 
 
@@ -78,14 +78,14 @@ def sync_s3_to_local(*, src: TFileInfoDict, dist: TFileInfoDict, dry=True):
     return __sync(create_action, src=src, dist=dist)
 
 
-def apply_actions(bucket_name: str, action_list: List[TActionDict]) -> None:
+def apply_actions(bucket_name: str, prefix: str, action_list: List[TActionDict]) -> None:
     client = __get_s3_client()
     for a in action_list:
         path = a["path"]
         action = a["action"]
         if action == "upload":
-            print("path:" + path)
-            # client.upload_file(path, bucket_name, )
+            key = path[len(prefix):]
+            client.upload_file(path, bucket_name, key)
 
 
 def __sync(create_action: TCreateAction, *, src: TFileInfoDict, dist: TFileInfoDict) -> List[TActionDict]:
