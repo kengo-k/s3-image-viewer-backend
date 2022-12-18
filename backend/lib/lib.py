@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import datetime
 import os
+from datetime import datetime, timedelta, timezone
 from functools import cache
 from typing import List
 
@@ -44,7 +44,7 @@ def get_local_file_info(dir_path: str, suffix: str) -> TFileInfoDict:
         for file in files:
             file_path = os.path.join(root, file)
             stat = os.stat(file_path)
-            dt = datetime.datetime.fromtimestamp(stat.st_mtime)
+            dt = datetime.fromtimestamp(stat.st_mtime)
             file_info[file_path[len(dir_path) + 1:]] = dt.replace(tzinfo=None)
     return file_info
 
@@ -58,13 +58,14 @@ def sync_date(*, lo, s3):
         os.utime(DATA_DIR + lopath, (s3time.timestamp(), s3time.timestamp()))
 
 
-def sync_local_to_s3() -> None:
-    local_file_info = get_local_file_info()
-    s3_file_info = get_s3_file_info()
+def sync_local_to_s3(dir_path: str, bucket_name: str, key: str) -> None:
+    local_file_info = get_local_file_info(dir_path, key)
+    s3_file_info = get_s3_file_info(bucket_name, key)
     actions = create_local_to_s3_actions(src=local_file_info, dist=s3_file_info)
+    apply_actions(bucket_name, dir_path, actions)
 
 
-def create_local_to_s3_actions(*, src: TFileInfoDict, dist: TFileInfoDict, dry=True) -> List[TActionDict]:
+def create_local_to_s3_actions(*, src: TFileInfoDict, dist: TFileInfoDict) -> List[TActionDict]:
     def create_action(path: str, is_delete: bool) -> TActionDict:
         if is_delete:
             return {"action": "delete_from_s3", "path": path}
@@ -74,7 +75,7 @@ def create_local_to_s3_actions(*, src: TFileInfoDict, dist: TFileInfoDict, dry=T
     return __create_actions(create_action, src=src, dist=dist)
 
 
-def create_s3_to_local_actions(*, src: TFileInfoDict, dist: TFileInfoDict, dry=True) -> List[TActionDict]:
+def create_s3_to_local_actions(*, src: TFileInfoDict, dist: TFileInfoDict) -> List[TActionDict]:
     def create_action(path: str, is_delete: bool) -> TActionDict:
         if is_delete:
             return {"action": "delete_from_local", "path": path}
@@ -117,8 +118,11 @@ def __create_actions(create_action: TCreateAction, *, src: TFileInfoDict, dist: 
             action = create_action(src_path, False)
             actions.append(action)
         else:
-            src_date = src[src_path]
-            dist_date = dist[src_path]
+            JST = timezone(timedelta(hours=+9), 'JST')
+            src_date = src[src_path].replace(tzinfo=JST)
+            dist_date = dist[src_path].astimezone(JST)
+            print(src_date.strftime("%Y/%m/%d %H:%M:%S %Z"))
+            print(dist_date.strftime("%Y/%m/%d %H:%M:%S %Z"))
             if src_date > dist_date:
                 # pattern 3
                 action = create_action(src_path, False)
