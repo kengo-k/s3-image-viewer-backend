@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from functools import cache
 from typing import List
 
 import boto3
 from dotenv import load_dotenv
 
+from lib.const import JST
 from lib.types import TActionDict, TCreateAction, TFileInfoDict
 
 load_dotenv()
@@ -32,7 +33,7 @@ def get_s3_file_info(bucket_name: str, prefix: str) -> TFileInfoDict:
     if "Contents" not in objects:
         return {}
     file_info: TFileInfoDict = {
-        content["Key"]: content["LastModified"]
+        content["Key"]: content["LastModified"].replace(tzinfo=JST)
         for content in objects["Contents"]
     }
     return file_info
@@ -45,17 +46,8 @@ def get_local_file_info(dir_path: str, suffix: str) -> TFileInfoDict:
             file_path = os.path.join(root, file)
             stat = os.stat(file_path)
             dt = datetime.fromtimestamp(stat.st_mtime)
-            file_info[file_path[len(dir_path) + 1:]] = dt.replace(tzinfo=None)
+            file_info[file_path[len(dir_path) + 1:]] = dt.replace(tzinfo=JST)
     return file_info
-
-
-def sync_date(*, lo, s3):
-    """
-    localを基準に回しlocalの更新時刻をs3に更新時刻に合わせる
-    """
-    for lopath in lo:
-        s3time = s3[lopath]
-        os.utime(DATA_DIR + lopath, (s3time.timestamp(), s3time.timestamp()))
 
 
 def sync_local_to_s3(dir_path: str, bucket_name: str, key: str) -> None:
@@ -63,6 +55,14 @@ def sync_local_to_s3(dir_path: str, bucket_name: str, key: str) -> None:
     s3_file_info = get_s3_file_info(bucket_name, key)
     actions = create_local_to_s3_actions(src=local_file_info, dist=s3_file_info)
     apply_actions(bucket_name, dir_path, actions)
+
+    # refetch from s3
+    s3_file_info = get_s3_file_info(bucket_name, key)
+    # apply s3 timestamp to local
+    for local_file_path in local_file_info:
+        full_path = dir_path + "/" + local_file_path
+        s3_timestamp = s3_file_info[local_file_path]
+        os.utime(full_path, (s3_timestamp.timestamp(), s3_timestamp.timestamp()))
 
 
 def create_local_to_s3_actions(*, src: TFileInfoDict, dist: TFileInfoDict) -> List[TActionDict]:
@@ -118,11 +118,8 @@ def __create_actions(create_action: TCreateAction, *, src: TFileInfoDict, dist: 
             action = create_action(src_path, False)
             actions.append(action)
         else:
-            JST = timezone(timedelta(hours=+9), 'JST')
-            src_date = src[src_path].replace(tzinfo=JST)
-            dist_date = dist[src_path].astimezone(JST)
-            print(src_date.strftime("%Y/%m/%d %H:%M:%S %Z"))
-            print(dist_date.strftime("%Y/%m/%d %H:%M:%S %Z"))
+            src_date = src[src_path]
+            dist_date = dist[src_path]
             if src_date > dist_date:
                 # pattern 3
                 action = create_action(src_path, False)
