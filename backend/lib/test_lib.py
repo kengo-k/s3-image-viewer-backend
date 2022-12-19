@@ -1,11 +1,12 @@
-import datetime
 import os
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from lib import lib
+from lib.const import JST
 from lib.types import TFileInfoDict
 
 TMPDIR = ""
@@ -18,7 +19,7 @@ def init_local_dir():
         dir_path = os.path.dirname(file_path)
         os.makedirs(dir_path, exist_ok=True)
         Path(file_path).touch()
-        day = datetime.datetime(year, month, day).replace(tzinfo=None).timestamp()
+        day = datetime(year, month, day).replace(tzinfo=None).timestamp()
         os.utime(file_path, (day, day))
 
     global TMPDIR
@@ -37,19 +38,19 @@ class MockClient:
             "Contents": [
                 {
                     "Key": "dir1/test1.txt",
-                    "LastModified": datetime.datetime(2000, 1, 1).replace(tzinfo=None),
+                    "LastModified": datetime(2000, 1, 1),
                 },
                 {
                     "Key": "dir1/test2.txt",
-                    "LastModified": datetime.datetime(2000, 1, 2).replace(tzinfo=None),
+                    "LastModified": datetime(2000, 1, 2),
                 },
                 {
                     "Key": "dir1/test3.txt",
-                    "LastModified": datetime.datetime(2000, 1, 3).replace(tzinfo=None),
+                    "LastModified": datetime(2000, 1, 3),
                 },
                 {
                     "Key": "dir2/test2.txt",
-                    "LastModified": datetime.datetime(2000, 1, 4).replace(tzinfo=None),
+                    "LastModified": datetime(2000, 1, 4),
                 },
             ]
         }
@@ -77,10 +78,10 @@ def test_get_s3_file_info(mocker):
     s3 = lib.get_s3_file_info("dummy_bucket", "dummy_prefix")
     assert len(s3.keys()) == 4
     table = {
-        "dir1/test1.txt": datetime.datetime(2000, 1, 1),
-        "dir1/test2.txt": datetime.datetime(2000, 1, 2),
-        "dir1/test3.txt": datetime.datetime(2000, 1, 3),
-        "dir2/test2.txt": datetime.datetime(2000, 1, 4),
+        "dir1/test1.txt": datetime(2000, 1, 1).replace(tzinfo=JST),
+        "dir1/test2.txt": datetime(2000, 1, 2).replace(tzinfo=JST),
+        "dir1/test3.txt": datetime(2000, 1, 3).replace(tzinfo=JST),
+        "dir2/test2.txt": datetime(2000, 1, 4).replace(tzinfo=JST),
     }
 
     for key in table:
@@ -90,14 +91,14 @@ def test_get_s3_file_info(mocker):
 
 def test_sync_local_to_s3():
     src: TFileInfoDict = {
-        "newfile.txt": datetime.datetime(2000, 1, 1),
-        "upload.txt": datetime.datetime(2001, 1, 1),
-        "no_upload.txt": datetime.datetime(2000, 1, 1),
+        "newfile.txt": datetime(2000, 1, 1),
+        "upload.txt": datetime(2001, 1, 1),
+        "no_upload.txt": datetime(2000, 1, 1),
     }
     dist: TFileInfoDict = {
-        "upload.txt": datetime.datetime(2000, 1, 1),
-        "no_upload.txt": datetime.datetime(2000, 1, 1),
-        "delete.txt": datetime.datetime(2000, 1, 1)
+        "upload.txt": datetime(2000, 1, 1),
+        "no_upload.txt": datetime(2000, 1, 1),
+        "delete.txt": datetime(2000, 1, 1)
     }
     actions = lib.create_local_to_s3_actions(src=src, dist=dist)
     assert len(actions) == 3
@@ -112,14 +113,14 @@ def test_sync_local_to_s3():
 
 def test_sync_s3_to_local():
     src: TFileInfoDict = {
-        "newfile.txt": datetime.datetime(2000, 1, 1),
-        "download.txt": datetime.datetime(2001, 1, 1),
-        "no_download.txt": datetime.datetime(2000, 1, 1),
+        "newfile.txt": datetime(2000, 1, 1),
+        "download.txt": datetime(2001, 1, 1),
+        "no_download.txt": datetime(2000, 1, 1),
     }
     dist: TFileInfoDict = {
-        "download.txt": datetime.datetime(2000, 1, 1),
-        "no_download.txt": datetime.datetime(2000, 1, 1),
-        "delete.txt": datetime.datetime(2000, 1, 1)
+        "download.txt": datetime(2000, 1, 1),
+        "no_download.txt": datetime(2000, 1, 1),
+        "delete.txt": datetime(2000, 1, 1)
     }
     actions = lib.create_s3_to_local_actions(src=src, dist=dist)
     assert len(actions) == 3
