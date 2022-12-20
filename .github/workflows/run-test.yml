@@ -16,14 +16,10 @@ jobs:
           python-version: '3.9'
 
       - name: Install Deps
-        run: |
-          cd backend
-          make install
+        run: make install
 
       - name: run pytest
-        run: |
-          cd backend
-          make test
+        run: make test
 
       - name: upload coverage to codecov
         uses: codecov/codecov-action@v2
