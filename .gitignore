@@ -1,7 +1,7 @@
 credentials
 dist
 node_modules
-venv
+.venv
 __pycache__
 images
 .env
