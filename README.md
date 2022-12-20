@@ -9,13 +9,13 @@ sudo apt install python3-venv
 ## init venv
 
 ```
-python3 -m venv .env
+python3 -m venv venv
 ```
 
 ## activate venv
 
 ```
-source ./.env/bin/activate 
+source venv/bin/activate 
 ```
 
 ## install dependencies
