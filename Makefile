@@ -1,5 +1,16 @@
-image:
-	docker build -t tool-s3-sync:v1.0.0 .
+.PHONY: test
 
-show-buckets:
-	docker run -it -v ${PWD}/settings:/root/.aws --rm tool-s3-sync:v1.0.0 show-buckets.sh
+run:
+	uvicorn main:app --reload
+
+save:
+	pip freeze > requirements.txt
+
+install:
+	pip install -r requirements.txt
+
+test:
+	PYTHONPATH=$(CURDIR) pytest -m"not aws" --cov --cov-report=xml -s .
+
+test-all:
+	PYTHONPATH=$(CURDIR) pytest --cov --cov-report=xml -s .
