@@ -65,6 +65,21 @@ def sync_local_to_s3(dir_path: str, bucket_name: str, key: str) -> None:
         os.utime(full_path, (s3_timestamp.timestamp(), s3_timestamp.timestamp()))
 
 
+def sync_s3_to_local(dir_path: str, bucket_name: str, key: str) -> None:
+    local_file_info = get_local_file_info(dir_path, key)
+    s3_file_info = get_s3_file_info(bucket_name, key)
+    actions = create_s3_to_local_actions(src=s3_file_info, dist=local_file_info)
+    apply_actions(bucket_name, dir_path, actions)
+
+    # refetch from s3
+    s3_file_info = get_s3_file_info(bucket_name, key)
+    # apply s3 timestamp to local
+    for s3_key in s3_file_info:
+        full_path = dir_path + "/" + s3_key
+        s3_timestamp = s3_file_info[s3_key]
+        os.utime(full_path, (s3_timestamp.timestamp(), s3_timestamp.timestamp()))
+
+
 def create_local_to_s3_actions(*, src: TFileInfoDict, dist: TFileInfoDict) -> List[TActionDict]:
     def create_action(path: str, is_delete: bool) -> TActionDict:
         if is_delete:
@@ -90,10 +105,16 @@ def apply_actions(bucket_name: str, prefix: str, action_list: List[TActionDict])
     for a in action_list:
         path = a["path"]
         action = a["action"]
+        fullpath = prefix + "/" + path
         if action == "upload":
-            key = path
-            fullpath = prefix + "/" + path
-            client.upload_file(fullpath, bucket_name, key)
+            client.upload_file(fullpath, bucket_name, path)
+        if action == "download":
+            os.makedirs(os.path.dirname(fullpath), exist_ok=True)
+            client.download_file(bucket_name, path, fullpath)
+        if action == "delete_from_s3":
+            client.delete_object(Bucket=bucket_name, Key=path)
+        if action == "delete_from_local":
+            os.remove(fullpath)
 
 
 def __create_actions(create_action: TCreateAction, *, src: TFileInfoDict, dist: TFileInfoDict) -> List[TActionDict]:
